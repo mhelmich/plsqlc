@@ -29,10 +29,10 @@ func parseText(p *parser, args []interface{}) (stateFunc, []interface{}) {
 	switch i := p.next(); i.Value {
 	case "CREATE":
 		if ok := p.acceptValue("OR"); !ok {
-			log.Panicf("Can't find 'or' lex item")
+			log.Panicf("Can't find 'or' lex item instead got %s", p.peek().Value)
 		}
 		if ok := p.acceptValue("REPLACE"); !ok {
-			log.Panicf("Can't find 'replace' lex item")
+			log.Panicf("Can't find 'replace' lex item instead got %s", p.peek().Value)
 		}
 		switch i2 := p.next(); i2.Value {
 		case "PACKAGE":
@@ -118,6 +118,17 @@ func parseFunction(p *parser, args []interface{}) (stateFunc, []interface{}) {
 		if i.Value != "IS" {
 			log.Panicf("Can't find 'is' lex item but is %s", p.next().Value)
 		}
+
+		// parse function locals
+		for p.peek().Typ == lexer.IdentifierType {
+			localName := p.next().Value
+			localType := p.next().Value
+			p.next()
+			localValue := p.next().Value
+			p.next()
+			f.AddLocal(localName, localType, localValue)
+		}
+
 		return parseFunctionBody, []interface{}{pkg, f}
 
 	default:
@@ -219,6 +230,7 @@ func parseQualifiedFunctionCall(p *parser, moduleName string) ast.Expression {
 
 // an expression can be:
 // - a function call
+// - a variable
 // - string
 // - a number
 func parseExpression(p *parser) ast.Expression {
@@ -230,6 +242,14 @@ func parseExpression(p *parser) ast.Expression {
 		return ast.NewNumericLiteral(i.Value)
 
 	case lexer.IdentifierType:
+		// this could be a function call or a variable
+		if p.peek().Value == "(" {
+			// function call
+			log.Panicf("not implemented yet")
+		} else {
+			// variable
+			return ast.NewVariable(i.Value)
+		}
 		log.Panicf("not implemented yet")
 
 	default:

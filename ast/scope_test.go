@@ -14,14 +14,33 @@
  * limitations under the License.
  */
 
-package compiler
+package ast
 
 import (
-	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestBasic(t *testing.T) {
-	Compile("../examples/test.sql", "./test", true, false)
-	defer os.Remove("test")
+func TestScopeBasic(t *testing.T) {
+	scope := newScope()
+	scope.addMember("1_narf", nil)
+	scope.addMember("1_moep", nil)
+	scope = scope.pushScope()
+	scope.addMember("2_narf", nil)
+	scope.addMember("2_moep", nil)
+
+	_, ok := scope.findMember("1_narf")
+	assert.True(t, ok)
+	_, ok = scope.findMember("2_moep")
+	assert.True(t, ok)
+	_, ok = scope.findMember("aaalalalal")
+	assert.False(t, ok)
+
+	scope = scope.popScope()
+	_, ok = scope.findMember("1_narf")
+	assert.True(t, ok)
+	_, ok = scope.findMember("2_moep")
+	assert.False(t, ok)
+
 }

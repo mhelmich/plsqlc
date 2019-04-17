@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package compiler
+package ast
 
-import (
-	"os"
-	"testing"
-)
+func NewRetrn() *Retrn {
+	return &Retrn{}
+}
 
-func TestBasic(t *testing.T) {
-	Compile("../examples/test.sql", "./test", true, false)
-	defer os.Remove("test")
+type Retrn struct {
+	expr Expression
 }

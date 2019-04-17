@@ -14,14 +14,37 @@
  * limitations under the License.
  */
 
-package compiler
+package ast
 
 import (
-	"os"
-	"testing"
+	"fmt"
+	"log"
+
+	"github.com/llir/llvm/ir/value"
 )
 
-func TestBasic(t *testing.T) {
-	Compile("../examples/test.sql", "./test", true, false)
-	defer os.Remove("test")
+func NewVariable(name string) *Variable {
+	return &Variable{
+		Name: name,
+	}
+}
+
+type Variable struct {
+	Name string
+}
+
+func (v *Variable) typ() expressionType {
+	return variableExpression
+}
+
+func (v *Variable) GenIR(cc *CompilerContext) value.Value {
+	mem, ok := cc.scopes.findMember(v.Name)
+	if !ok {
+		log.Panicf("Can't find '%s' in scope", v.Name)
+	}
+	return cc.currentLlvmBlock.NewLoad(mem)
+}
+
+func (v *Variable) String() string {
+	return fmt.Sprintf("<variable> %s", v.Name)
 }

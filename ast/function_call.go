@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
 
@@ -57,6 +58,18 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 				fn = cc.getFuncByName("_runtime.printStr")
 			case numberExpression:
 				fn = cc.getFuncByName("_runtime.printInt")
+			case variableExpression:
+				variable := fc.Args[0].(*Variable)
+				v, ok := cc.scopes.findMember(variable.Name)
+				if !ok {
+					log.Panicf("Can't find variable '%s' in scope", variable.Name)
+				}
+
+				if v.Type().Equal(types.I64Ptr) {
+					fn = cc.getFuncByName("_runtime.printInt")
+				} else {
+					log.Panicf("Can't find type '%s'", v.Type().String())
+				}
 			default:
 				log.Panicf("Can't find type '%d'", fc.Args[0].typ())
 			}

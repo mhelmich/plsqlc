@@ -16,7 +16,10 @@
 
 package ast
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
 
 func NewBlock(name string) *Block {
 	return &Block{
@@ -34,12 +37,16 @@ func (b *Block) AddInstruction(i Instruction) {
 }
 
 func (b *Block) GenIR(cc *CompilerContext) error {
-	cc.currentLlvmBlock = cc.currentLlvmFunc.NewBlock(b.Name)
+	cc.currentLlvmBlock.SetName(b.Name)
 	for idx := range b.Instructions {
 		b.Instructions[idx].GenIR(cc)
 	}
-	cc.currentLlvmBlock.NewRet(nil)
-	cc.currentLlvmBlock = nil
+
+	if cc.currentLlvmBlock.Term == nil {
+		log.Printf("Didn't find a terminator! Filled in empty return.\n")
+		cc.currentLlvmBlock.NewRet(nil)
+	}
+
 	return nil
 }
 

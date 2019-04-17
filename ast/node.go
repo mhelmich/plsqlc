@@ -31,6 +31,7 @@ const (
 	stringExpression expressionType = iota
 	numberExpression
 	functionCallExpression
+	variableExpression
 )
 
 var (
@@ -47,11 +48,13 @@ type CompilerContext struct {
 	currentPackageName string
 	currentLlvmFunc    *ir.Func
 	currentLlvmBlock   *ir.Block
+	scopes             *scope
 }
 
 func NewCompilerContext(mod *ir.Module) *CompilerContext {
 	return &CompilerContext{
 		llvmModule: mod,
+		scopes:     newScope(),
 	}
 }
 
@@ -90,6 +93,59 @@ func (cc *CompilerContext) getTypeByName(n string) types.Type {
 
 func (cc *CompilerContext) GetIRModule() *ir.Module {
 	return cc.llvmModule
+}
+
+func newScope() *scope {
+	return &scope{
+		Members: make(map[string]value.Value),
+		valid:   true,
+	}
+}
+
+type scope struct {
+	Parent  *scope
+	Members map[string]value.Value
+	valid   bool
+}
+
+func (s *scope) pushScope() *scope {
+	ns := newScope()
+	ns.Parent = s
+	return ns
+}
+
+func (s *scope) popScope() *scope {
+	if s.Parent == nil {
+		log.Panicf("Can't pop root scope!")
+	}
+
+	x := s.Parent
+	s.valid = false
+	s.Parent = nil
+	return x
+}
+
+func (s *scope) addMember(name string, val value.Value) {
+	s.Members[name] = val
+}
+
+func (s *scope) findMember(name string) (value.Value, bool) {
+	if !s.valid {
+		log.Panicf("Scope is not valid!")
+	}
+
+	hasParent := true
+	x := s
+	for hasParent {
+		v, ok := x.Members[name]
+		if ok {
+			return v, true
+		}
+		hasParent = x.Parent != nil
+		x = x.Parent
+	}
+
+	return nil, false
 }
 
 type Instruction interface {

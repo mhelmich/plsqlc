@@ -34,14 +34,27 @@ const (
       DBMS.PRINT(99);
     END;
 
-END MAIN;
-/
+	END MAIN;
+  /
+`
+
+	controlFlowExample = `
+  CREATE OR REPLACE PACKAGE BODY main AS
+
+		PROCEDURE main IS
+			li INT := 99;
+		BEGIN
+			dbms.print(li);
+		END;
+
+  END main;
+  /
 `
 )
 
 func TestParserPeek(t *testing.T) {
-	_, items := lexer.NewLexer("test-basic", basicExample)
-	p := NewParser(items)
+	_, items := lexer.NewLexer("", basicExample)
+	p := newParser(items)
 
 	peekedItem := p.peek()
 	consumedItem := p.next()
@@ -58,9 +71,20 @@ func TestParserPeek(t *testing.T) {
 
 func TestBasic(t *testing.T) {
 	_, items := lexer.NewLexer("test-basic", basicExample)
-	p := NewParser(items)
+	p := newParser(items)
 	p.run()
 	for k, v := range p.packages {
 		log.Printf("%s %s", k, v.String())
 	}
+	assert.Equal(t, 1, len(p.packages))
+}
+
+func TestControlFlow(t *testing.T) {
+	_, items := lexer.NewLexer("", controlFlowExample)
+	p := newParser(items)
+	p.run()
+	for k, v := range p.packages {
+		log.Printf("%s %s", k, v.String())
+	}
+	assert.Equal(t, 1, len(p.packages))
 }

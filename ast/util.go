@@ -17,6 +17,8 @@
 package ast
 
 import (
+	"log"
+
 	"github.com/llir/llvm/ir/types"
 )
 
@@ -24,6 +26,8 @@ func plsqlTypeToLLVMType(t string) types.Type {
 	switch t {
 	case "INT":
 		return types.I64
+	default:
+		log.Panicf("Type '%s' is not implemented yet", t)
 	}
 
 	return nil

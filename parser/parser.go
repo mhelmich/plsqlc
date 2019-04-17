@@ -31,13 +31,18 @@ type parser struct {
 }
 
 func NewParser(input <-chan *lexer.Item) *parser {
+	p := newParser(input)
+	go p.run()
+	return p
+}
+
+func newParser(input <-chan *lexer.Item) *parser {
 	p := &parser{
 		input:    input,
 		packages: make(map[string]*ast.Package),
 		sem:      make(chan interface{}),
 	}
 
-	go p.run()
 	return p
 }
 
