@@ -65,6 +65,11 @@ func Compile(inputPath string, outputPath string, printIR bool, deleteLlvmIR boo
 		"-o", outputPath,       // output path
 		"-O3",
 	}
+
+	if printIR {
+		fmt.Printf("clang %v\n", clangArgs)
+	}
+
 	cmd := exec.Command("clang", clangArgs...)
 	output, err := cmd.CombinedOutput()
 

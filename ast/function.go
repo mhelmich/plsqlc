@@ -26,6 +26,7 @@ import (
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
+	"github.com/mhelmich/plsqlc/runtime"
 )
 
 func NewFunction(fn string) *Function {
@@ -137,12 +138,21 @@ func (fl *FunctionLocal) GenIR(cc *CompilerContext) value.Value {
 	cc.scopes.addMember(fl.Name, alloca)
 	if fl.Value != "" {
 		switch fl.Typ {
+
 		case "INT":
 			i, err := strconv.ParseInt(fl.Value, 10, 64)
 			if err != nil {
 				log.Panicf("%s", err.Error())
 			}
 			cc.currentLlvmBlock.NewStore(constant.NewInt(types.I64, i), alloca)
+
+		case "VARCHAR":
+			// chop off the 's on both ends
+			s := fl.Value[1 : len(fl.Value)-1]
+			runtime.MakeString(s, cc.currentLlvmBlock, alloca)
+
+		default:
+			log.Panicf("Local for type '%s' not implemented", fl.Typ)
 		}
 
 	}

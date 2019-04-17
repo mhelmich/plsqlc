@@ -18,8 +18,10 @@ CREATE OR REPLACE PACKAGE BODY main AS
 
     PROCEDURE main IS
       li INT := 99;
+      lstr varchar := 'this is a string';
     BEGIN
       dbms.print(li);
+      dbms.print(lstr);
     END;
 
 END main;

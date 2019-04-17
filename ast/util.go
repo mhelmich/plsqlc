@@ -20,12 +20,15 @@ import (
 	"log"
 
 	"github.com/llir/llvm/ir/types"
+	"github.com/mhelmich/plsqlc/runtime"
 )
 
 func plsqlTypeToLLVMType(t string) types.Type {
 	switch t {
 	case "INT":
 		return types.I64
+	case "VARCHAR":
+		return runtime.StringType
 	default:
 		log.Panicf("Type '%s' is not implemented yet", t)
 	}

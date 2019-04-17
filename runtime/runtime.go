@@ -31,8 +31,14 @@ const (
 )
 
 var (
-	llvmZero = constant.NewInt(types.I64, 0)
-	llvmOne  = constant.NewInt(types.I64, 1)
+	llvmZeroI32 = constant.NewInt(types.I32, 0)
+	llvmOneI32  = constant.NewInt(types.I32, 1)
+
+	llvmZeroI64 = constant.NewInt(types.I64, 0)
+	llvmOneI64  = constant.NewInt(types.I64, 1)
+
+	StringType        types.Type
+	StringPointerType types.Type
 )
 
 func GenerateInModule(mod *ir.Module) {
@@ -41,7 +47,8 @@ func GenerateInModule(mod *ir.Module) {
 
 	stringStruct := types.NewStruct(types.NewPointer(types.I8), types.I64)
 	stringStruct.SetName("_runtime._string")
-	mod.NewTypeDef("_runtime._string", stringStruct)
+	StringType = mod.NewTypeDef("_runtime._string", stringStruct)
+	StringPointerType = types.NewPointer(StringType)
 
 	generate_printInt(mod)
 	generateprintInt(mod)
@@ -64,19 +71,21 @@ func generateTestMain(mod *ir.Module) {
 	bmain := main.NewBlock("main-main")
 	bmain.NewCall(printInt, constant.NewInt(types.I32, 5432))
 
-	strStruct := make_string("\nHello World!\n", bmain, mod)
+	strStruct := makeStringWithAlloca("\nHello World!\n", bmain)
 	bmain.NewCall(printStr, bmain.NewLoad(strStruct))
 
 	bmain.NewRet(constant.NewInt(types.I32, 0))
 }
 
-func make_string(s string, b *ir.Block, mod *ir.Module) value.Named {
-	stringType := getTypeByName("_runtime._string", mod)
+func makeStringWithAlloca(s string, b *ir.Block) value.Named {
+	strStruct := b.NewAlloca(StringType)
+	return MakeString(s, b, strStruct)
+}
 
-	strStruct := b.NewAlloca(stringType)
-	dataPtr := b.NewGetElementPtr(strStruct, llvmZero, llvmZero)
-	lenPtr := b.NewGetElementPtr(strStruct, llvmZero, llvmOne)
-	b.NewStore(constant.NewInt(types.I32, int64(len(s))), lenPtr)
+func MakeString(s string, b *ir.Block, strStruct *ir.InstAlloca) value.Named {
+	dataPtr := b.NewGetElementPtr(strStruct, llvmZeroI32, llvmZeroI32)
+	lenPtr := b.NewGetElementPtr(strStruct, llvmZeroI32, llvmOneI32)
+	b.NewStore(constant.NewInt(types.I64, int64(len(s))), lenPtr)
 
 	a := b.NewAlloca(types.NewArray(uint64(len(s)), types.I8))
 	b.NewStore(constant.NewCharArrayFromString(s), a)
@@ -105,7 +114,7 @@ func generate_printInt(mod *ir.Module) {
 	thenBlock.NewBr(elseBlock)
 
 	rem := elseBlock.NewURem(input, base)
-	charPtr := elseBlock.NewGetElementPtr(gDigits, llvmZero, rem)
+	charPtr := elseBlock.NewGetElementPtr(gDigits, llvmZeroI32, rem)
 	elseBlock.NewCall(putchar, elseBlock.NewLoad(charPtr))
 	elseBlock.NewRet(nil)
 }
@@ -150,7 +159,7 @@ func generateprintStr(mod *ir.Module) {
 	mergeBB := printStr.NewBlock("loop-merge")
 
 	i := entryBB.NewAlloca(types.I64)
-	entryBB.NewStore(llvmZero, i)
+	entryBB.NewStore(llvmZeroI64, i)
 	str := entryBB.NewExtractValue(strInput, 0)
 	len := entryBB.NewExtractValue(strInput, 1)
 	cmp := entryBB.NewICmp(enum.IPredSLT, entryBB.NewLoad(i), len)
@@ -160,7 +169,7 @@ func generateprintStr(mod *ir.Module) {
 	charPtr := whileBB.NewGetElementPtr(str, iLoaded)
 	whileBB.NewCall(putchar, whileBB.NewLoad(charPtr))
 	// i++
-	whileBB.NewStore(whileBB.NewAdd(llvmOne, iLoaded), i)
+	whileBB.NewStore(whileBB.NewAdd(llvmOneI64, iLoaded), i)
 	cmp = whileBB.NewICmp(enum.IPredSLT, whileBB.NewLoad(i), len)
 	whileBB.NewCondBr(cmp, whileBB, mergeBB)
 

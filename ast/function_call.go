@@ -23,6 +23,7 @@ import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
+	"github.com/mhelmich/plsqlc/runtime"
 )
 
 func NewFunctionCall(moduleName string, functionName string) *FunctionCall {
@@ -67,9 +68,12 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 
 				if v.Type().Equal(types.I64Ptr) {
 					fn = cc.getFuncByName("_runtime.printInt")
+				} else if v.Type().Equal(runtime.StringPointerType) {
+					fn = cc.getFuncByName("_runtime.printStr")
 				} else {
 					log.Panicf("Can't find type '%s'", v.Type().String())
 				}
+
 			default:
 				log.Panicf("Can't find type '%d'", fc.Args[0].typ())
 			}
@@ -91,6 +95,7 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 
 		args = append(args, v)
 	}
+
 	funcCall := cc.currentLlvmBlock.NewCall(fn, args...)
 	return funcCall
 }
