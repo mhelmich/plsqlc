@@ -10,7 +10,8 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:31dcbe2eb9bbc16a172a5635dcdee522e9931e70c1b425cf2ee0eac2bc483bb1"
+  branch = "master"
+  digest = "1:309933537a5fd77e72581e73b6ddff36ad9de5c58e84fba8fff23e297d04b757"
   name = "github.com/llir/llvm"
   packages = [
     "internal/enc",
@@ -22,8 +23,7 @@
     "ir/value",
   ]
   pruneopts = "UT"
-  revision = "7bc9a55b4fbade84132a6ea13b21c62b21de99aa"
-  version = "v0.3.0-pre7"
+  revision = "8a20cc8910c5223df2a22cbf0a50beb391a08131"
 
 [[projects]]
   branch = "master"

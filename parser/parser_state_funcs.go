@@ -23,9 +23,9 @@ import (
 	"github.com/mhelmich/plsqlc/lexer"
 )
 
-type stateFunc func(*parser, []interface{}) (stateFunc, []interface{})
+type stateFunc func(*parser, *parserContext) (stateFunc, *parserContext)
 
-func parseText(p *parser, args []interface{}) (stateFunc, []interface{}) {
+func parseText(p *parser, pc *parserContext) (stateFunc, *parserContext) {
 	switch i := p.next(); i.Value {
 	case "CREATE":
 		if ok := p.acceptValue("OR"); !ok {
@@ -36,7 +36,7 @@ func parseText(p *parser, args []interface{}) (stateFunc, []interface{}) {
 		}
 		switch i2 := p.next(); i2.Value {
 		case "PACKAGE":
-			return parseCreatePackage, nil
+			return parseCreatePackage, pc
 		default:
 			log.Panicf("Can't match item %s", i.String())
 		}
@@ -47,7 +47,7 @@ func parseText(p *parser, args []interface{}) (stateFunc, []interface{}) {
 	return nil, nil
 }
 
-func parseCreatePackage(p *parser, args []interface{}) (stateFunc, []interface{}) {
+func parseCreatePackage(p *parser, pc *parserContext) (stateFunc, *parserContext) {
 	switch i := p.next(); i.Value {
 	case "BODY":
 		packageNameItem := p.next()
@@ -57,7 +57,8 @@ func parseCreatePackage(p *parser, args []interface{}) (stateFunc, []interface{}
 		pkg := ast.NewPackage(packageNameItem.Value)
 		p.packages[packageNameItem.Value] = pkg
 		log.Printf("Found package: %s\n", pkg.Name)
-		return parseInsidePackage, []interface{}{pkg}
+		pc.pkg = pkg
+		return parseInsidePackage, pc
 
 	default:
 		log.Panicf("Can't match lex item '%s'", i.String())
@@ -66,14 +67,15 @@ func parseCreatePackage(p *parser, args []interface{}) (stateFunc, []interface{}
 	return nil, nil
 }
 
-func parseInsidePackage(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	pkg := args[0].(*ast.Package)
+func parseInsidePackage(p *parser, pc *parserContext) (stateFunc, *parserContext) {
+	pkg := pc.pkg
 	switch i := p.next(); i.Value {
 	case "PROCEDURE":
 		fName := p.next().Value
-		f := ast.NewFunction(fName)
+		f := ast.NewFunction(fName, true)
 		pkg.AddFunction(f)
-		return parseFunction, []interface{}{pkg, f}
+		pc.function = f
+		return parseFunction, pc
 
 	case "END":
 		if ok := p.acceptValue(pkg.Name); !ok {
@@ -93,9 +95,8 @@ func parseInsidePackage(p *parser, args []interface{}) (stateFunc, []interface{}
 	return nil, nil
 }
 
-func parseFunction(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	pkg := args[0].(*ast.Package)
-	f := args[1].(*ast.Function)
+func parseFunction(p *parser, pc *parserContext) (stateFunc, *parserContext) {
+	f := pc.function
 	switch i := p.next(); i.Typ {
 	case lexer.SeparatorType:
 
@@ -112,7 +113,7 @@ func parseFunction(p *parser, args []interface{}) (stateFunc, []interface{}) {
 		if ok := p.acceptValue("IS"); !ok {
 			log.Panicf("Can't find 'is' lex item")
 		}
-		return parseFunctionBody, []interface{}{pkg, f}
+		return parseFunctionBody, pc
 
 	case lexer.KeywordType:
 		if i.Value != "IS" {
@@ -129,144 +130,29 @@ func parseFunction(p *parser, args []interface{}) (stateFunc, []interface{}) {
 			f.AddLocal(localName, localType, localValue)
 		}
 
-		return parseFunctionBody, []interface{}{pkg, f}
+		return parseFunctionBody, pc
 
 	default:
 		log.Panicf("Can't match token %s", i.Value)
 	}
-	return parseInsidePackage, []interface{}{pkg}
+
+	pc.function = nil
+	return parseInsidePackage, pc
 }
 
-func parseFunctionBody(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	pkg := args[0].(*ast.Package)
-	f := args[1].(*ast.Function)
+func parseFunctionBody(p *parser, pc *parserContext) (stateFunc, *parserContext) {
+	f := pc.function
 	switch i := p.next(); i.Value {
 	case "BEGIN":
-		return parseBlock, []interface{}{pkg, f, f.Proto.Name + "-entry"}
+		blk := ast.NewBlock(f.Proto.Name + "-entry")
+		f.AddBlock(blk)
+		pc.block = blk
+		parseInsideBlock(p, pc)
 
 	default:
 		log.Panicf("Can't match lex item '%s'", i.Value)
 	}
 	log.Printf("parsed function body for %s\n", f.Proto.Name)
-	return parseInsidePackage, []interface{}{pkg}
-}
-
-func parseBlock(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	pkg := args[0].(*ast.Package)
-	f := args[1].(*ast.Function)
-	blkName := args[2].(string)
-	blk := ast.NewBlock(blkName)
-	f.AddBlock(blk)
-	return parseInsideBlock, []interface{}{pkg, blk}
-}
-
-func parseInsideBlock(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	pkg := args[0].(*ast.Package)
-	blk := args[1].(*ast.Block)
-	switch i := p.next(); i.Typ {
-	case lexer.IdentifierType:
-		// could be a qualified function call ('package.func()'), a local function call ('func()') or an assignment ('a:=12')
-		if p.acceptValue(".") {
-			fc := parseQualifiedFunctionCall(p, i.Value)
-			blk.AddInstruction(fc)
-			return parseInsideBlock, args
-		} else if p.acceptValue("(") {
-			fc := parseLocalFunctionCall(p, i.Value)
-			blk.AddInstruction(fc)
-			return parseInsideBlock, args
-		} else if p.acceptValue(":=") {
-			log.Panicf("not implemented yet")
-		}
-
-		log.Panicf("Shouldn't reach here!")
-
-	case lexer.KeywordType:
-		switch i.Value {
-		case "END":
-			if ok := p.acceptValue(";"); !ok {
-				log.Panicf("Can't find ';' lex item")
-			}
-			return parseInsidePackage, []interface{}{pkg}
-
-		case "IF":
-			log.Panicf("not implemented yet")
-
-		case "FOR":
-			log.Panicf("not implemented yet")
-
-		default:
-			log.Panicf("Can't match lex item '%s'", i.Value)
-		}
-	default:
-		log.Panicf("Can't match lex item '%s'", i.Value)
-	}
-	return nil, nil
-}
-
-func parseQualifiedFunctionCall(p *parser, moduleName string) ast.Expression {
-	ok, funcName := p.acceptType(lexer.IdentifierType)
-	if !ok {
-		log.Panicf("Can't find '%s' lex item", funcName)
-	}
-
-	fc := ast.NewFunctionCall(moduleName, funcName)
-
-	if ok := p.acceptValue("("); !ok {
-		log.Panicf("Can't find '(' lex item")
-	}
-
-	for ok := p.acceptValue(")"); !ok; ok = p.acceptValue(")") {
-		// there is moa parameterz
-		expr := parseExpression(p)
-		fc.AddArg(expr)
-		p.acceptValue(",")
-	}
-
-	if ok := p.acceptValue(";"); !ok {
-		log.Panicf("Can't find ';' lex item")
-	}
-	return fc
-}
-
-// an expression can be:
-// - a function call
-// - a variable
-// - string
-// - a number
-func parseExpression(p *parser) ast.Expression {
-	switch i := p.next(); i.Typ {
-	case lexer.StringType:
-		return ast.NewStringLiteral(i.Value)
-
-	case lexer.NumericType:
-		return ast.NewNumericLiteral(i.Value)
-
-	case lexer.IdentifierType:
-		// this could be a function call or a variable
-		if p.peek().Value == "(" {
-			// function call
-			log.Panicf("not implemented yet")
-		} else {
-			// variable
-			return ast.NewVariable(i.Value)
-		}
-		log.Panicf("not implemented yet")
-
-	default:
-		log.Panicf("Can't match lex item '%s'", i.Value)
-	}
-
-	return nil
-}
-
-func parseLocalFunctionCall(p *parser, funcName string) ast.Expression {
-	return nil
-}
-
-func parseAssignment(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	return nil, nil
-}
-
-func parseInstruction(p *parser, args []interface{}) (stateFunc, []interface{}) {
-	return nil, nil
+	pc.function = nil
+	return parseInsidePackage, pc
 }

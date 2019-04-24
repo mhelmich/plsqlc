@@ -17,6 +17,7 @@
 package parser
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/mhelmich/plsqlc/ast"
@@ -57,9 +58,9 @@ func (p *parser) GetPackageAsts() map[string]*ast.Package {
 
 func (p *parser) run() {
 	state := parseText
-	var args []interface{}
+	pc := &parserContext{}
 	for state != nil {
-		state, args = state(p, args)
+		state, pc = state(p, pc)
 	}
 
 	close(p.sem)
@@ -104,4 +105,14 @@ func (p *parser) acceptType(valid lexer.ItemType) (bool, string) {
 func (p *parser) errorf(format string, args ...interface{}) stateFunc {
 	log.Printf(format+"\n", args...)
 	return nil
+}
+
+type parserContext struct {
+	pkg      *ast.Package
+	function *ast.Function
+	block    *ast.Block
+}
+
+func (pc *parserContext) String() string {
+	return fmt.Sprintf("pkg: %s, func: %s, blk: %s", pc.pkg.Name, pc.function.Proto.Name, pc.block.Name)
 }

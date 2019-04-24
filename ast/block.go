@@ -19,6 +19,8 @@ package ast
 import (
 	"log"
 	"strings"
+
+	"github.com/llir/llvm/ir/value"
 )
 
 func NewBlock(name string) *Block {
@@ -30,31 +32,54 @@ func NewBlock(name string) *Block {
 type Block struct {
 	Name         string
 	Instructions []Instruction
+	Terminator   Instruction
 }
 
 func (b *Block) AddInstruction(i Instruction) {
 	b.Instructions = append(b.Instructions, i)
 }
 
-func (b *Block) GenIR(cc *CompilerContext) error {
-	cc.currentLlvmBlock.SetName(b.Name)
+func (b *Block) GenIR(cc *CompilerContext) value.Value {
+	cc.currentLlvmBlock = cc.functionBlocks[b]
 	for idx := range b.Instructions {
 		b.Instructions[idx].GenIR(cc)
 	}
 
-	if cc.currentLlvmBlock.Term == nil {
-		log.Printf("Didn't find a terminator! Filled in empty return.\n")
+	if cc.currentLlvmBlock.Term == nil && b.Terminator == nil {
+		log.Printf("Didn't find a terminator in block '%s'! Filled in empty return.\n", b.Name)
 		cc.currentLlvmBlock.NewRet(nil)
+	} else {
+		b.Terminator.GenIR(cc)
 	}
 
-	return nil
+	if cc.currentLlvmBlock.Term == nil {
+		log.Panicf("%s has no terminator!\n", b.Name)
+	}
+
+	return cc.currentLlvmBlock
 }
 
 func (b *Block) String() string {
 	var sb strings.Builder
-	for idx := range b.Instructions {
-		sb.WriteString(b.Instructions[idx].String())
-		sb.WriteString("\n")
+	sb.WriteString(b.Name)
+	sb.WriteString("\n")
+
+	if len(b.Instructions) > 0 {
+		for idx := range b.Instructions {
+			sb.WriteString(b.Instructions[idx].String())
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString("<empty>")
 	}
+
+	sb.WriteString("Terminator:\n")
+	if b.Terminator == nil {
+		sb.WriteString("<empty>")
+	} else {
+		sb.WriteString(b.Terminator.String())
+	}
+	sb.WriteString("\n")
+
 	return sb.String()
 }

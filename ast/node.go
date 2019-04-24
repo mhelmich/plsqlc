@@ -32,6 +32,7 @@ const (
 	numberExpression
 	functionCallExpression
 	variableExpression
+	binOpExpression
 )
 
 var (
@@ -47,6 +48,7 @@ type CompilerContext struct {
 	llvmModule         *ir.Module
 	currentPackageName string
 	currentLlvmFunc    *ir.Func
+	functionBlocks     map[*Block]*ir.Block
 	currentLlvmBlock   *ir.Block
 	scopes             *scope
 }

@@ -29,18 +29,20 @@ import (
 	"github.com/mhelmich/plsqlc/runtime"
 )
 
-func NewFunction(fn string) *Function {
+func NewFunction(fn string, isProcedure bool) *Function {
 	return &Function{
-		Proto:  NewFunctionProto(fn),
-		Locals: make([]*FunctionLocal, 0),
-		Blocks: make([]*Block, 0),
+		Proto:       NewFunctionProto(fn),
+		Locals:      make([]*FunctionLocal, 0),
+		Blocks:      make([]*Block, 0),
+		isProcedure: isProcedure,
 	}
 }
 
 type Function struct {
-	Proto  *FunctionProto
-	Locals []*FunctionLocal
-	Blocks []*Block
+	Proto       *FunctionProto
+	Locals      []*FunctionLocal
+	Blocks      []*Block
+	isProcedure bool
 }
 
 func (f *Function) AddParam(name string, ownership string, t string) {
@@ -61,48 +63,48 @@ func (f *Function) AddBlock(b *Block) {
 }
 
 func (f *Function) GenIRForProtos(cc *CompilerContext) value.Value {
-	f.Proto.GenIR(cc)
-	return nil
+	return f.Proto.GenIR(cc)
 }
 
 func (f *Function) GenIR(cc *CompilerContext) value.Value {
 	llvmFunc := cc.getFuncByName(cc.currentPackageName + "." + f.Proto.Name)
 	cc.currentLlvmFunc = llvmFunc
-	hasLocals := len(f.Locals) > 0
-	var blocks []*ir.Block
-	var additionalBlocks int
-	if hasLocals {
-		// if we have locals in this function, we add an extra block just for
-		// the declaration and definition of all locals
-		blocks = make([]*ir.Block, len(f.Blocks)+1)
-		additionalBlocks = 1
-
-		blocks[0] = cc.currentLlvmFunc.NewBlock("locals")
-		cc.currentLlvmBlock = blocks[0]
-
+	if len(f.Locals) > 0 {
+		localsBlock := cc.currentLlvmFunc.NewBlock("locals")
+		cc.currentLlvmBlock = localsBlock
 		// locals have their own block
 		for idx := range f.Locals {
 			f.Locals[idx].GenIR(cc)
 		}
+
+		// create all llvm blocks ahead of time
+		cc.functionBlocks = make(map[*Block]*ir.Block)
+		for idx := range f.Blocks {
+			cc.functionBlocks[f.Blocks[idx]] = cc.currentLlvmFunc.NewBlock(f.Blocks[idx].Name)
+		}
+
+		// generate llvm ir for all blocks
+		for idx := range f.Blocks {
+			f.Blocks[idx].GenIR(cc)
+		}
+
+		// link locals block to method entry block
+		// that is the first block in the list
+		localsBlock.NewBr(cc.functionBlocks[f.Blocks[0]])
 	} else {
-		blocks = make([]*ir.Block, len(f.Blocks))
-		additionalBlocks = 0
-	}
+		cc.functionBlocks = make(map[*Block]*ir.Block)
+		for idx := range f.Blocks {
+			cc.functionBlocks[f.Blocks[idx]] = cc.currentLlvmFunc.NewBlock(f.Blocks[idx].Name)
+		}
 
-	// create code blocks
-	for idx := range f.Blocks {
-		blocks[idx+additionalBlocks] = cc.currentLlvmFunc.NewBlock("")
-		cc.currentLlvmBlock = blocks[idx+additionalBlocks]
-		f.Blocks[idx].GenIR(cc)
-	}
-
-	// wire up the first two blocks
-	if hasLocals {
-		blocks[0].NewBr(blocks[1])
+		for idx := range f.Blocks {
+			f.Blocks[idx].GenIR(cc)
+		}
 	}
 
 	cc.currentLlvmBlock = nil
 	cc.currentLlvmFunc = nil
+	cc.functionBlocks = nil
 	return llvmFunc
 }
 
@@ -111,6 +113,7 @@ func (f *Function) String() string {
 	sb.WriteString("<func definition> ")
 	sb.WriteString(f.Proto.String())
 	sb.WriteString("\n")
+	sb.WriteString("Locals:\n")
 
 	for idx := range f.Locals {
 		sb.WriteString(f.Locals[idx].String())
@@ -118,6 +121,7 @@ func (f *Function) String() string {
 	}
 
 	sb.WriteString("\n")
+	sb.WriteString("Blocks:\n")
 
 	for idx := range f.Blocks {
 		sb.WriteString(f.Blocks[idx].String())

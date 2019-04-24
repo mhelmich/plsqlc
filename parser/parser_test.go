@@ -45,6 +45,9 @@ const (
 			li INT := 99;
 		BEGIN
 			dbms.print(li);
+			IF li > 50 THEN
+				dbms.print(50);
+			END IF;
 		END;
 
   END main;
