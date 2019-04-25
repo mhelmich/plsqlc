@@ -49,6 +49,8 @@ var keywords = map[string]bool{
 	"IF":        true,
 	"THEN":      true,
 	"ELSE":      true,
+	"LOOP":      true,
+	"WHILE":     true,
 }
 
 type stateFunc func(*Lexer) stateFunc

@@ -18,14 +18,19 @@ package ast
 
 import (
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/llir/llvm/ir/value"
 )
 
+var blockNameCounter int64
+
 func NewBlock(name string) *Block {
+	n := name + "-" + strconv.FormatInt(blockNameCounter, 10)
+	blockNameCounter++
 	return &Block{
-		Name: name,
+		Name: n,
 	}
 }
 

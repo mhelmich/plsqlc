@@ -50,6 +50,8 @@ func parseInsideBlock(p *parser, pc *parserContext) {
 			case "END":
 				// eat a potential 'IF'
 				p.acceptValue("IF")
+				// eat a potential 'LOOP'
+				p.acceptValue("LOOP")
 
 				if ok := p.acceptValue(";"); !ok {
 					log.Panicf("Can't find ';' lex item")
@@ -81,8 +83,25 @@ func parseInsideBlock(p *parser, pc *parserContext) {
 				blk = mergeBlk
 				continue
 
-			case "FOR":
-				log.Panicf("not implemented yet")
+			case "WHILE":
+				cond := parseBinOp(p)
+				if ok := p.acceptValue("LOOP"); !ok {
+					log.Panicf("Can't find 'LOOP' lex item")
+				}
+
+				loopBlk := ast.NewBlock("loop-block")
+				pc.block = loopBlk
+				f.AddBlock(loopBlk)
+
+				parseInsideBlock(p, pc)
+
+				mergeBlk := ast.NewBlock("merge-block")
+				f.AddBlock(mergeBlk)
+				blk.Terminator = ast.NewConditionalBranch(cond, loopBlk, mergeBlk)
+				loopBlk.Terminator = ast.NewConditionalBranch(cond, loopBlk, mergeBlk)
+
+				blk = mergeBlk
+				continue
 
 			default:
 				log.Panicf("Can't match lex item '%s'", i.Value)
