@@ -29,6 +29,7 @@ CREATE OR REPLACE PACKAGE BODY main AS
 
       WHILE li > 50 LOOP
         dbms.print(li);
+        li := li - 1;
       END LOOP;
     END;
 

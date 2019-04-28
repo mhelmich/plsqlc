@@ -82,6 +82,14 @@ const (
 	END LOOP;
 	END; -- to make the parser end gracefully
 	`
+
+	parseLoopBranches2 = `
+	WHILE li > 50 LOOP
+		dbms.print(li);
+		li := li - 1;
+	END LOOP;
+	END;
+	`
 )
 
 func TestParseFunction1(t *testing.T) {
@@ -193,6 +201,27 @@ func TestParseIfBranches2(t *testing.T) {
 
 func TestParseLoopBranches1(t *testing.T) {
 	_, items := lexer.NewLexer("", parseLoopBranches1)
+	p := newParser(items)
+
+	pkg := ast.NewPackage("pkg_name")
+	f := ast.NewFunction("f_name", true)
+	blk := ast.NewBlock("entry-block")
+	f.AddBlock(blk)
+	pc := &parserContext{
+		pkg:      pkg,
+		function: f,
+		block:    blk,
+	}
+
+	parseInsideBlock(p, pc)
+	assert.Equal(t, 3, len(f.Blocks))
+	assert.NotNil(t, f.Blocks[0].Terminator)
+	_, ok := f.Blocks[0].Terminator.(*ast.ConditionalBranch)
+	assert.True(t, ok)
+}
+
+func TestParseLoopBranches2(t *testing.T) {
+	_, items := lexer.NewLexer("", parseLoopBranches2)
 	p := newParser(items)
 
 	pkg := ast.NewPackage("pkg_name")

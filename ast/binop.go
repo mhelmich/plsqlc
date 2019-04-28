@@ -49,6 +49,8 @@ func (bo *BinOp) GenIR(cc *CompilerContext) value.Value {
 	switch bo.Op {
 	case ">":
 		return cc.currentLlvmBlock.NewICmp(enum.IPredSGT, l, r)
+	case "-":
+		return cc.currentLlvmBlock.NewSub(l, r)
 	default:
 		log.Panicf("Operation '%s' hasn't been implemented yet", bo.Op)
 	}

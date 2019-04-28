@@ -29,7 +29,7 @@ const (
 	specialChars = "_"
 
 	separatorChars = ";(),/"
-	operatorChars  = "<>:.=" // contains ':' so that ':=' can be found
+	operatorChars  = "<>:.=-" // contains ':' so that ':=' can be found
 )
 
 // if types are keywords, the parser gets more complicated

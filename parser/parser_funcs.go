@@ -41,6 +41,10 @@ func parseInsideBlock(p *parser, pc *parserContext) {
 				blk.AddInstruction(fc)
 				continue
 
+			} else if p.acceptValue(":=") {
+				a := parseAssignment(p, i.Value)
+				blk.AddInstruction(a)
+				continue
 			}
 
 			log.Panicf("Shouldn't reach here!")
@@ -127,6 +131,7 @@ func parseBinOp(p *parser) *ast.BinOp {
 // - a variable
 // - string
 // - a number
+// - a binop (todo)
 func parseExpression(p *parser) ast.Expression {
 	switch i := p.next(); i.Typ {
 	case lexer.StringType:
@@ -195,4 +200,14 @@ func parseLocalFunctionCall(p *parser, moduleName string, funcName string) ast.E
 		log.Panicf("Can't find ';' lex item")
 	}
 	return fc
+}
+
+func parseAssignment(p *parser, identifier string) *ast.Assignment {
+	expr := parseBinOp(p)
+	a := ast.NewAssignment(identifier, expr)
+
+	if ok := p.acceptValue(";"); !ok {
+		log.Panicf("Can't find ';' lex item")
+	}
+	return a
 }

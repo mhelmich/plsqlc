@@ -69,6 +69,9 @@ func (f *Function) GenIRForProtos(cc *CompilerContext) value.Value {
 func (f *Function) GenIR(cc *CompilerContext) value.Value {
 	llvmFunc := cc.getFuncByName(cc.currentPackageName + "." + f.Proto.Name)
 	cc.currentLlvmFunc = llvmFunc
+	cc.scopes = cc.scopes.pushScope()
+	defer cc.scopes.popScope()
+
 	if len(f.Locals) > 0 {
 		localsBlock := cc.currentLlvmFunc.NewBlock("locals")
 		cc.currentLlvmBlock = localsBlock
