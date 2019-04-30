@@ -61,31 +61,38 @@ END MAIN;
 func TestIdentifier(t *testing.T) {
 	_, items := NewLexer("test-identifier", "input")
 	i := <-items
-	assert.Equal(t, &Item{IdentifierType, "INPUT"}, i, i.String())
+	assert.Equal(t, IdentifierType, i.Typ)
+	assert.Equal(t, "INPUT", i.Value)
 	i = <-items
-	assert.Equal(t, &Item{EofType, ""}, i, i.String())
+	assert.Equal(t, EofType, i.Typ)
+	assert.Equal(t, "", i.Value)
 }
 
 func TestString(t *testing.T) {
 	_, items := NewLexer("test-string", "'input'")
 	i := <-items
-	assert.Equal(t, &Item{StringType, "'input'"}, i, i.String())
+	assert.Equal(t, StringType, i.Typ)
+	assert.Equal(t, "'input'", i.Value)
 	i = <-items
-	assert.Equal(t, &Item{EofType, ""}, i, i.String())
+	assert.Equal(t, EofType, i.Typ)
+	assert.Equal(t, "", i.Value)
 }
 
 func TestNumeric(t *testing.T) {
 	_, items := NewLexer("test-numberic", "9876")
 	i := <-items
-	assert.Equal(t, &Item{NumericType, "9876"}, i, i.String())
+	assert.Equal(t, NumericType, i.Typ)
+	assert.Equal(t, "9876", i.Value)
 }
 
 func TestCommentAndThenString(t *testing.T) {
 	_, items := NewLexer("", "-- narf narf narf \n' 9876'")
 	i := <-items
-	assert.Equal(t, &Item{StringType, "' 9876'"}, i, i.String())
+	assert.Equal(t, StringType, i.Typ)
+	assert.Equal(t, "' 9876'", i.Value)
 	i = <-items
-	assert.Equal(t, &Item{EofType, ""}, i, i.String())
+	assert.Equal(t, EofType, i.Typ)
+	assert.Equal(t, "", i.Value)
 }
 
 func TestKeywordVsIdentifier(t *testing.T) {

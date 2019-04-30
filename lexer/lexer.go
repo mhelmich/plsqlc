@@ -62,13 +62,16 @@ func (l *Lexer) lastLexed() rune {
 }
 
 func (l *Lexer) emit(t ItemType) {
-	var txt string
+	txt := l.input[l.start:l.pos]
 	if t == KeywordType || t == IdentifierType {
-		txt = strings.ToUpper(l.input[l.start:l.pos])
-	} else {
-		txt = l.input[l.start:l.pos]
+		txt = strings.ToUpper(txt)
 	}
-	l.items <- &Item{t, txt}
+	l.items <- &Item{
+		Typ:      t,
+		Value:    txt,
+		StartPos: l.start,
+		EndPos:   l.pos,
+	}
 	l.start = l.pos
 }
 
@@ -124,8 +127,9 @@ func (l *Lexer) acceptMany(valid string) {
 
 func (l *Lexer) errorf(format string, args ...interface{}) stateFunc {
 	l.items <- &Item{
-		Typ:   ErrorType,
-		Value: fmt.Sprintf(format, args...),
+		Typ:      ErrorType,
+		Value:    fmt.Sprintf(format, args...),
+		StartPos: l.start,
 	}
 	return nil
 }

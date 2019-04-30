@@ -34,8 +34,10 @@ const (
 )
 
 type Item struct {
-	Typ   ItemType
-	Value string
+	Typ      ItemType
+	Value    string
+	StartPos int
+	EndPos   int
 }
 
 func (i *Item) String() string {

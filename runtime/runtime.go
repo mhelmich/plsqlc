@@ -69,7 +69,7 @@ func generateTestMain(mod *ir.Module) {
 
 	main := mod.NewFunc("main", types.I32)
 	bmain := main.NewBlock("main-main")
-	bmain.NewCall(printInt, constant.NewInt(types.I32, 5432))
+	bmain.NewCall(printInt, constant.NewInt(types.I64, 5432))
 
 	strStruct := makeStringWithAlloca("\nHello World!\n", bmain)
 	bmain.NewCall(printStr, bmain.NewLoad(strStruct))
