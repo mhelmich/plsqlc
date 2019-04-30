@@ -97,6 +97,26 @@ func (cc *CompilerContext) GetIRModule() *ir.Module {
 	return cc.llvmModule
 }
 
+func (cc *CompilerContext) pushScope() *scope {
+	ns := newScope()
+	ns.Parent = cc.scopes
+	cc.scopes = ns
+	return ns
+}
+
+func (cc *CompilerContext) popScope() *scope {
+	s := cc.scopes
+	if s.Parent == nil {
+		log.Panicf("Can't pop root scope!")
+	}
+
+	x := cc.scopes.Parent
+	s.valid = false
+	s.Parent = nil
+	cc.scopes = x
+	return x
+}
+
 func newScope() *scope {
 	return &scope{
 		Members: make(map[string]value.Value),
@@ -108,23 +128,6 @@ type scope struct {
 	Parent  *scope
 	Members map[string]value.Value
 	valid   bool
-}
-
-func (s *scope) pushScope() *scope {
-	ns := newScope()
-	ns.Parent = s
-	return ns
-}
-
-func (s *scope) popScope() *scope {
-	if s.Parent == nil {
-		log.Panicf("Can't pop root scope!")
-	}
-
-	x := s.Parent
-	s.valid = false
-	s.Parent = nil
-	return x
 }
 
 func (s *scope) addMember(name string, val value.Value) {

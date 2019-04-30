@@ -23,24 +23,24 @@ import (
 )
 
 func TestScopeBasic(t *testing.T) {
-	scope := newScope()
-	scope.addMember("1_narf", nil)
-	scope.addMember("1_moep", nil)
-	scope = scope.pushScope()
-	scope.addMember("2_narf", nil)
-	scope.addMember("2_moep", nil)
+	cc := NewCompilerContext(nil)
+	cc.scopes.addMember("1_narf", nil)
+	cc.scopes.addMember("1_moep", nil)
+	cc.pushScope()
+	cc.scopes.addMember("2_narf", nil)
+	cc.scopes.addMember("2_moep", nil)
 
-	_, ok := scope.findMember("1_narf")
+	_, ok := cc.scopes.findMember("1_narf")
 	assert.True(t, ok)
-	_, ok = scope.findMember("2_moep")
+	_, ok = cc.scopes.findMember("2_moep")
 	assert.True(t, ok)
-	_, ok = scope.findMember("aaalalalal")
+	_, ok = cc.scopes.findMember("aaalalalal")
 	assert.False(t, ok)
 
-	scope = scope.popScope()
-	_, ok = scope.findMember("1_narf")
+	cc.popScope()
+	_, ok = cc.scopes.findMember("1_narf")
 	assert.True(t, ok)
-	_, ok = scope.findMember("2_moep")
+	_, ok = cc.scopes.findMember("2_moep")
 	assert.False(t, ok)
 
 }
