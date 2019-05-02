@@ -117,13 +117,7 @@ func parseInsideBlock(p *parser, pc *parserContext) {
 }
 
 func parseBinOp(p *parser) *ast.BinOp {
-	left := parseExpression(p)
-	op := p.next()
-	if op.Typ != lexer.OperatorType {
-		log.Panicf("Lex item '%s' is not an operator\n", op.Value)
-	}
-	right := parseExpression(p)
-	return ast.NewBinOp(left, op.Value, right)
+	return parseBinOpExpression(p, p.next())
 }
 
 // an expression can be:
@@ -133,7 +127,11 @@ func parseBinOp(p *parser) *ast.BinOp {
 // - a number
 // - a binop (todo)
 func parseExpression(p *parser) ast.Expression {
-	switch i := p.next(); i.Typ {
+	return parseExpressionFromLexItem(p, p.next())
+}
+
+func parseExpressionFromLexItem(p *parser, i *lexer.Item) ast.Expression {
+	switch i.Typ {
 	case lexer.StringType:
 		return ast.NewStringLiteral(i.Value)
 
@@ -145,6 +143,9 @@ func parseExpression(p *parser) ast.Expression {
 		if p.peek().Value == "(" {
 			// function call
 			log.Panicf("not implemented yet")
+		} else if p.peek().Typ == lexer.OperatorType {
+			// bin op
+			return parseBinOpExpression(p, i)
 		} else {
 			// variable
 			return ast.NewVariable(i.Value)
@@ -156,6 +157,20 @@ func parseExpression(p *parser) ast.Expression {
 	}
 
 	return nil
+}
+
+func parseBinOpExpression(p *parser, leftItem *lexer.Item) *ast.BinOp {
+	// eat all the items from the parser before parsing them
+	opItem := p.next()
+	rightItem := p.next()
+
+	if opItem.Typ != lexer.OperatorType {
+		log.Panicf("Lex item '%s' is not an operator\n", opItem.Value)
+	}
+
+	left := parseExpressionFromLexItem(p, leftItem)
+	right := parseExpressionFromLexItem(p, rightItem)
+	return ast.NewBinOp(left, opItem.Value, right)
 }
 
 func parseQualifiedFunctionCall(p *parser, moduleName string) ast.Expression {
@@ -203,7 +218,7 @@ func parseLocalFunctionCall(p *parser, moduleName string, funcName string) ast.E
 }
 
 func parseAssignment(p *parser, identifier string) *ast.Assignment {
-	expr := parseBinOp(p)
+	expr := parseExpression(p)
 	a := ast.NewAssignment(identifier, expr)
 
 	if ok := p.acceptValue(";"); !ok {
