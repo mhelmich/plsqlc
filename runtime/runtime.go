@@ -53,6 +53,7 @@ func GenerateInModule(mod *ir.Module) {
 	generate_printInt(mod)
 	generateprintInt(mod)
 	generateprintStr(mod)
+	generate_equalStr(mod)
 }
 
 func GenerateMain(mod *ir.Module) {
@@ -66,6 +67,7 @@ func GenerateMain(mod *ir.Module) {
 func generateTestMain(mod *ir.Module) {
 	printInt := getFuncByName("_runtime.printInt", mod)
 	printStr := getFuncByName("_runtime.printStr", mod)
+	equalStr := getFuncByName("_runtime._equalStr", mod)
 
 	main := mod.NewFunc("main", types.I32)
 	bmain := main.NewBlock("main-main")
@@ -73,6 +75,24 @@ func generateTestMain(mod *ir.Module) {
 
 	strStruct := makeStringWithAlloca("\nHello World!\n", bmain)
 	bmain.NewCall(printStr, bmain.NewLoad(strStruct))
+
+	s1 := bmain.NewLoad(makeStringWithAlloca("narf", bmain))
+	s2 := bmain.NewLoad(makeStringWithAlloca("moep", bmain))
+	equalI1 := bmain.NewCall(equalStr, s1, s2)
+	equalI64 := bmain.NewZExt(equalI1, types.I64)
+	bmain.NewCall(printInt, equalI64)
+
+	s1 = bmain.NewLoad(makeStringWithAlloca("narf", bmain))
+	s2 = bmain.NewLoad(makeStringWithAlloca("MrMoep", bmain))
+	equalI1 = bmain.NewCall(equalStr, s1, s2)
+	equalI64 = bmain.NewZExt(equalI1, types.I64)
+	bmain.NewCall(printInt, equalI64)
+
+	s1 = bmain.NewLoad(makeStringWithAlloca("narf", bmain))
+	s2 = bmain.NewLoad(makeStringWithAlloca("narf", bmain))
+	equalI1 = bmain.NewCall(equalStr, s1, s2)
+	equalI64 = bmain.NewZExt(equalI1, types.I64)
+	bmain.NewCall(printInt, equalI64)
 
 	bmain.NewRet(constant.NewInt(types.I32, 0))
 }
@@ -93,6 +113,43 @@ func MakeString(s string, b *ir.Block, strStruct *ir.InstAlloca) value.Named {
 	b.NewStore(strPtr, dataPtr)
 
 	return strStruct
+}
+
+func generate_equalStr(mod *ir.Module) {
+	stringType := getTypeByName("_runtime._string", mod)
+
+	s1 := ir.NewParam("s1", stringType)
+	s2 := ir.NewParam("s2", stringType)
+	internalStringEqual := mod.NewFunc("_runtime._equalStr", types.I1, s1, s2)
+	entryBB := internalStringEqual.NewBlock("entry")
+
+	idx := entryBB.NewAlloca(types.I64)
+	entryBB.NewStore(constant.NewInt(types.I64, 0), idx)
+
+	strS1 := entryBB.NewExtractValue(s1, 0)
+	lenS1 := entryBB.NewExtractValue(s1, 1)
+	strS2 := entryBB.NewExtractValue(s2, 0)
+	lenS2 := entryBB.NewExtractValue(s2, 1)
+	cmpLen := entryBB.NewICmp(enum.IPredEQ, lenS1, lenS2)
+
+	equalBB := internalStringEqual.NewBlock("equal")
+	equalBB.NewRet(constant.NewInt(types.I1, 1))
+	notEqualBB := internalStringEqual.NewBlock("not-equal")
+	notEqualBB.NewRet(constant.NewInt(types.I1, 0))
+
+	testCharsBB1 := internalStringEqual.NewBlock("test-chars-1")
+	testCharsBB2 := internalStringEqual.NewBlock("test-chars-2")
+
+	entryBB.NewCondBr(cmpLen, testCharsBB1, notEqualBB)
+
+	char1 := testCharsBB1.NewGetElementPtr(strS1, testCharsBB1.NewLoad(idx))
+	char2 := testCharsBB1.NewGetElementPtr(strS2, testCharsBB1.NewLoad(idx))
+	charEq := testCharsBB1.NewICmp(enum.IPredEQ, testCharsBB1.NewLoad(char1), testCharsBB1.NewLoad(char2))
+	testCharsBB1.NewCondBr(charEq, testCharsBB2, notEqualBB)
+
+	testCharsBB2.NewStore(testCharsBB2.NewAdd(llvmOneI64, testCharsBB2.NewLoad(idx)), idx)
+	idxLT := testCharsBB2.NewICmp(enum.IPredULT, testCharsBB2.NewLoad(idx), lenS2)
+	testCharsBB2.NewCondBr(idxLT, testCharsBB1, equalBB)
 }
 
 func generate_printInt(mod *ir.Module) {

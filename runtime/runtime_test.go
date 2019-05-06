@@ -18,7 +18,6 @@ package runtime
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"testing"
 
@@ -35,8 +34,8 @@ func TestBasic(t *testing.T) {
 	ir := mod.String()
 	fmt.Printf("%s", ir)
 	err := ioutil.WriteFile("./runtime.ll", []byte(ir), 0644)
-	defer os.Remove("runtime.ll")
-	defer os.Remove("runtime")
+	// defer os.Remove("runtime.ll")
+	// defer os.Remove("runtime")
 	assert.Nil(t, err)
 
 	clangArgs := []string{
@@ -55,6 +54,9 @@ func TestBasic(t *testing.T) {
 
 	if len(output) > 0 {
 		fmt.Println(string(output))
-		// return errors.New("Clang failure")
 	}
+
+	cmd = exec.Command("./runtime")
+	output, _ = cmd.CombinedOutput()
+	fmt.Println(string(output))
 }
