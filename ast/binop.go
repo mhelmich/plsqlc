@@ -21,7 +21,9 @@ import (
 	"log"
 
 	"github.com/llir/llvm/ir/enum"
+	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
+	"github.com/mhelmich/plsqlc/runtime"
 )
 
 func NewBinOp(left Expression, op string, right Expression) *BinOp {
@@ -38,7 +40,7 @@ type BinOp struct {
 	Right Expression
 }
 
-func (bo *BinOp) typ() expressionType {
+func (bo *BinOp) expressionType() expressionType {
 	return binOpExpression
 }
 
@@ -48,9 +50,33 @@ func (bo *BinOp) GenIR(cc *CompilerContext) value.Value {
 
 	switch bo.Op {
 	case ">":
-		return cc.currentLlvmBlock.NewICmp(enum.IPredSGT, l, r)
+		if bo.Left.expressionType() == numberExpression || bo.Right.expressionType() == numberExpression {
+			return cc.currentLlvmBlock.NewICmp(enum.IPredSGT, l, r)
+		} else {
+			log.Panicf("Not implemented yet - '>' '%v' '%v'", bo.Left.expressionType(), bo.Right.expressionType())
+		}
 	case "-":
-		return cc.currentLlvmBlock.NewSub(l, r)
+		if bo.Left.expressionType() == numberExpression || bo.Right.expressionType() == numberExpression {
+			return cc.currentLlvmBlock.NewSub(l, r)
+		} else {
+			log.Panicf("Not implemented yet - '-' '%v' '%v'", bo.Left.expressionType(), bo.Right.expressionType())
+		}
+	case "=":
+		if bo.Left.expressionType() == numberExpression || bo.Right.expressionType() == numberExpression {
+			return cc.currentLlvmBlock.NewICmp(enum.IPredEQ, l, r)
+		} else if bo.Left.expressionType() == stringExpression || bo.Right.expressionType() == stringExpression {
+			if types.IsPointer(l.Type()) {
+				l = cc.currentLlvmBlock.NewLoad(l)
+			}
+
+			if types.IsPointer(r.Type()) {
+				r = cc.currentLlvmBlock.NewLoad(r)
+			}
+
+			return cc.currentLlvmBlock.NewCall(runtime.EqualStringFunc, l, r)
+		} else {
+			log.Panicf("Not implemented yet - '-' '%v' '%v'", bo.Left.expressionType(), bo.Right.expressionType())
+		}
 	default:
 		log.Panicf("Operation '%s' hasn't been implemented yet", bo.Op)
 	}

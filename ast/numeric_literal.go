@@ -40,7 +40,7 @@ type NumericLiteral struct {
 	Value int64
 }
 
-func (nl *NumericLiteral) typ() expressionType {
+func (nl *NumericLiteral) expressionType() expressionType {
 	return numberExpression
 }
 

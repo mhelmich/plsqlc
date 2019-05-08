@@ -22,9 +22,11 @@ import (
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
+	"github.com/mhelmich/plsqlc/runtime"
 )
 
 func NewStringLiteral(value string) *StringLiteral {
+	value = value[1 : len(value)-1]
 	return &StringLiteral{
 		Value: value,
 	}
@@ -34,12 +36,12 @@ type StringLiteral struct {
 	Value string
 }
 
-func (sl *StringLiteral) typ() expressionType {
+func (sl *StringLiteral) expressionType() expressionType {
 	return stringExpression
 }
 
 func (sl *StringLiteral) GenIR(cc *CompilerContext) value.Value {
-	stringType := cc.getTypeByName("_runtime._string")
+	stringType := cc.getTypeByName(runtime.StringTypeName)
 
 	strStruct := cc.currentLlvmBlock.NewAlloca(stringType)
 	dataPtr := cc.currentLlvmBlock.NewGetElementPtr(strStruct, llvmZero, llvmZero)

@@ -44,7 +44,7 @@ func (fc *FunctionCall) AddArg(expr Expression) {
 	fc.Args = append(fc.Args, expr)
 }
 
-func (fc *FunctionCall) typ() expressionType {
+func (fc *FunctionCall) expressionType() expressionType {
 	return functionCallExpression
 }
 
@@ -54,11 +54,11 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 		// aha!
 		switch fc.FunctionName {
 		case "PRINT":
-			switch fc.Args[0].typ() {
+			switch fc.Args[0].expressionType() {
 			case stringExpression:
-				fn = cc.getFuncByName("_runtime.printStr")
+				fn = cc.getFuncByName(runtime.PrintStringFuncName)
 			case numberExpression:
-				fn = cc.getFuncByName("_runtime.printInt")
+				fn = cc.getFuncByName(runtime.PrintIntFuncName)
 			case variableExpression:
 				variable := fc.Args[0].(*Variable)
 				v, ok := cc.scopes.findMember(variable.Name)
@@ -67,15 +67,15 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 				}
 
 				if v.Type().Equal(types.I64Ptr) {
-					fn = cc.getFuncByName("_runtime.printInt")
+					fn = cc.getFuncByName(runtime.PrintIntFuncName)
 				} else if v.Type().Equal(runtime.StringPointerType) {
-					fn = cc.getFuncByName("_runtime.printStr")
+					fn = cc.getFuncByName(runtime.PrintStringFuncName)
 				} else {
 					log.Panicf("Can't find type '%s'", v.Type().String())
 				}
 
 			default:
-				log.Panicf("Can't find type '%d'", fc.Args[0].typ())
+				log.Panicf("Can't find type '%d'", fc.Args[0].expressionType())
 			}
 
 		default:
@@ -89,7 +89,7 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 	for idx := range fc.Args {
 		v := fc.Args[idx].GenIR(cc)
 
-		if fc.Args[idx].typ() == stringExpression {
+		if fc.Args[idx].expressionType() == stringExpression {
 			v = cc.currentLlvmBlock.NewLoad(v)
 		}
 

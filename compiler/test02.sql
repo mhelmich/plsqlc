@@ -17,29 +17,10 @@
 CREATE OR REPLACE PACKAGE BODY main AS
 
     PROCEDURE main IS
-      li INT := 99;
-      lstr varchar := 'this is a string';
-      lstr2 varchar := 'hello';
+      lstr varchar := 'narf';
     BEGIN
-      dbms.print(li);
-      dbms.print(lstr);
-      IF li > 50 THEN
-        dbms.print(50);
-      END IF;
-
-      dbms.print(47);
-
-      WHILE li > 50 LOOP
-        dbms.print(li);
-        li := li - 1;
-      END LOOP;
-
-      IF lstr2 = 'hello' THEN
-        dbms.print('string is hello :)');
-      END IF;
-
-      IF li = 50 THEN
-        dbms.print('i is 50 :)');
+      IF lstr = 'narf' THEN
+        dbms.print('is_narf');
       END IF;
     END;
 

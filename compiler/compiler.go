@@ -17,7 +17,6 @@
 package compiler
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -51,7 +50,7 @@ func Compile(inputPath string, outputPath string, printIR bool, deleteLlvmIR boo
 	ir := mod.String()
 
 	if printIR {
-		fmt.Printf("%s", ir)
+		log.Printf("%s", ir)
 	}
 
 	err = ioutil.WriteFile(fileName, []byte(ir), 0644)
@@ -67,7 +66,7 @@ func Compile(inputPath string, outputPath string, printIR bool, deleteLlvmIR boo
 	}
 
 	if printIR {
-		fmt.Printf("clang %v\n", clangArgs)
+		log.Printf("clang %v\n", clangArgs)
 	}
 
 	cmd := exec.Command("clang", clangArgs...)

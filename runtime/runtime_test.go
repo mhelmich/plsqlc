@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -27,6 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var basicOutput = "5432\n10\n\nHello World!\n\n0\n0\n1\n"
+
 func TestBasic(t *testing.T) {
 	mod := ir.NewModule()
 	GenerateInModule(mod)
@@ -34,8 +37,8 @@ func TestBasic(t *testing.T) {
 	ir := mod.String()
 	fmt.Printf("%s", ir)
 	err := ioutil.WriteFile("./runtime.ll", []byte(ir), 0644)
-	// defer os.Remove("runtime.ll")
-	// defer os.Remove("runtime")
+	defer os.Remove("runtime.ll")
+	defer os.Remove("runtime")
 	assert.Nil(t, err)
 
 	clangArgs := []string{
@@ -58,5 +61,7 @@ func TestBasic(t *testing.T) {
 
 	cmd = exec.Command("./runtime")
 	output, _ = cmd.CombinedOutput()
-	fmt.Println(string(output))
+	soutput := string(output)
+	fmt.Println(soutput)
+	assert.Equal(t, basicOutput, soutput)
 }

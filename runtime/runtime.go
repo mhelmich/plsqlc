@@ -30,6 +30,15 @@ const (
 	digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
+const (
+	StringTypeName = "_runtime._string"
+
+	EqualStringFuncName      = "_runtime._equalStr"
+	PrintIntFuncName         = "_runtime.printInt"
+	PrintStringFuncName      = "_runtime.printStr"
+	internalPrintIntFuncName = "_runtime._printInt"
+)
+
 var (
 	llvmZeroI32 = constant.NewInt(types.I32, 0)
 	llvmOneI32  = constant.NewInt(types.I32, 1)
@@ -39,6 +48,10 @@ var (
 
 	StringType        types.Type
 	StringPointerType types.Type
+
+	EqualStringFunc *ir.Func
+	PrintIntFunc    *ir.Func
+	PrintStringFunc *ir.Func
 )
 
 func GenerateInModule(mod *ir.Module) {
@@ -46,8 +59,8 @@ func GenerateInModule(mod *ir.Module) {
 	mod.NewGlobalDef("_runtime.digits", constant.NewCharArrayFromString(digits))
 
 	stringStruct := types.NewStruct(types.NewPointer(types.I8), types.I64)
-	stringStruct.SetName("_runtime._string")
-	StringType = mod.NewTypeDef("_runtime._string", stringStruct)
+	stringStruct.SetName(StringTypeName)
+	StringType = mod.NewTypeDef(StringTypeName, stringStruct)
 	StringPointerType = types.NewPointer(StringType)
 
 	generate_printInt(mod)
@@ -65,13 +78,14 @@ func GenerateMain(mod *ir.Module) {
 }
 
 func generateTestMain(mod *ir.Module) {
-	printInt := getFuncByName("_runtime.printInt", mod)
-	printStr := getFuncByName("_runtime.printStr", mod)
-	equalStr := getFuncByName("_runtime._equalStr", mod)
+	printInt := getFuncByName(PrintIntFuncName, mod)
+	printStr := getFuncByName(PrintStringFuncName, mod)
+	equalStr := getFuncByName(EqualStringFuncName, mod)
 
 	main := mod.NewFunc("main", types.I32)
 	bmain := main.NewBlock("main-main")
 	bmain.NewCall(printInt, constant.NewInt(types.I64, 5432))
+	bmain.NewCall(printInt, constant.NewInt(types.I64, 10))
 
 	strStruct := makeStringWithAlloca("\nHello World!\n", bmain)
 	bmain.NewCall(printStr, bmain.NewLoad(strStruct))
@@ -116,12 +130,12 @@ func MakeString(s string, b *ir.Block, strStruct *ir.InstAlloca) value.Named {
 }
 
 func generate_equalStr(mod *ir.Module) {
-	stringType := getTypeByName("_runtime._string", mod)
+	stringType := getTypeByName(StringTypeName, mod)
 
 	s1 := ir.NewParam("s1", stringType)
 	s2 := ir.NewParam("s2", stringType)
-	internalStringEqual := mod.NewFunc("_runtime._equalStr", types.I1, s1, s2)
-	entryBB := internalStringEqual.NewBlock("entry")
+	EqualStringFunc = mod.NewFunc(EqualStringFuncName, types.I1, s1, s2)
+	entryBB := EqualStringFunc.NewBlock("entry")
 
 	idx := entryBB.NewAlloca(types.I64)
 	entryBB.NewStore(constant.NewInt(types.I64, 0), idx)
@@ -132,13 +146,13 @@ func generate_equalStr(mod *ir.Module) {
 	lenS2 := entryBB.NewExtractValue(s2, 1)
 	cmpLen := entryBB.NewICmp(enum.IPredEQ, lenS1, lenS2)
 
-	equalBB := internalStringEqual.NewBlock("equal")
+	equalBB := EqualStringFunc.NewBlock("equal")
 	equalBB.NewRet(constant.NewInt(types.I1, 1))
-	notEqualBB := internalStringEqual.NewBlock("not-equal")
+	notEqualBB := EqualStringFunc.NewBlock("not-equal")
 	notEqualBB.NewRet(constant.NewInt(types.I1, 0))
 
-	testCharsBB1 := internalStringEqual.NewBlock("test-chars-1")
-	testCharsBB2 := internalStringEqual.NewBlock("test-chars-2")
+	testCharsBB1 := EqualStringFunc.NewBlock("test-chars-1")
+	testCharsBB2 := EqualStringFunc.NewBlock("test-chars-2")
 
 	entryBB.NewCondBr(cmpLen, testCharsBB1, notEqualBB)
 
@@ -158,16 +172,16 @@ func generate_printInt(mod *ir.Module) {
 
 	input := ir.NewParam("input", types.I64)
 	base := ir.NewParam("base", types.I64)
-	internalPrintInt := mod.NewFunc("_runtime._printInt", types.Void, input, base)
-	entry := internalPrintInt.NewBlock("entry")
+	PrintIntFunc = mod.NewFunc(internalPrintIntFuncName, types.Void, input, base)
+	entry := PrintIntFunc.NewBlock("entry")
 
-	cmp := entry.NewICmp(enum.IPredUGT, input, base)
-	thenBlock := internalPrintInt.NewBlock("then")
-	elseBlock := internalPrintInt.NewBlock("merge")
+	cmp := entry.NewICmp(enum.IPredUGE, input, base)
+	thenBlock := PrintIntFunc.NewBlock("then")
+	elseBlock := PrintIntFunc.NewBlock("merge")
 	entry.NewCondBr(cmp, thenBlock, elseBlock)
 
 	tmpDiv := thenBlock.NewUDiv(input, base)
-	thenBlock.NewCall(internalPrintInt, tmpDiv, base)
+	thenBlock.NewCall(PrintIntFunc, tmpDiv, base)
 	thenBlock.NewBr(elseBlock)
 
 	rem := elseBlock.NewURem(input, base)
@@ -177,11 +191,11 @@ func generate_printInt(mod *ir.Module) {
 }
 
 func generateprintInt(mod *ir.Module) {
-	internalPrintInt := getFuncByName("_runtime._printInt", mod)
+	internalPrintInt := getFuncByName(internalPrintIntFuncName, mod)
 	putchar := getFuncByName("putchar", mod)
 
 	input := ir.NewParam("input", types.I64)
-	printInt := mod.NewFunc("_runtime.printInt", types.Void, input)
+	printInt := mod.NewFunc(PrintIntFuncName, types.Void, input)
 	entry := printInt.NewBlock("entry")
 
 	alloca := entry.NewAlloca(types.I64)
@@ -207,13 +221,13 @@ func generateprintInt(mod *ir.Module) {
 
 func generateprintStr(mod *ir.Module) {
 	putchar := getFuncByName("putchar", mod)
-	stringType := getTypeByName("_runtime._string", mod)
+	stringType := getTypeByName(StringTypeName, mod)
 
 	strInput := ir.NewParam("s", stringType)
-	printStr := mod.NewFunc("_runtime.printStr", types.Void, strInput)
-	entryBB := printStr.NewBlock("entry")
-	whileBB := printStr.NewBlock("loop-body")
-	mergeBB := printStr.NewBlock("loop-merge")
+	PrintStringFunc = mod.NewFunc(PrintStringFuncName, types.Void, strInput)
+	entryBB := PrintStringFunc.NewBlock("entry")
+	whileBB := PrintStringFunc.NewBlock("loop-body")
+	mergeBB := PrintStringFunc.NewBlock("loop-merge")
 
 	i := entryBB.NewAlloca(types.I64)
 	entryBB.NewStore(llvmZeroI64, i)

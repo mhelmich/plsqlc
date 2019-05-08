@@ -18,7 +18,6 @@ package lexer
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"unicode/utf8"
 )
@@ -33,7 +32,6 @@ type Lexer struct {
 }
 
 func NewLexer(name string, input string) (*Lexer, <-chan *Item) {
-	log.Printf("%s\n", input)
 	l := &Lexer{
 		name:  name,
 		input: input,

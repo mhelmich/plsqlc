@@ -33,7 +33,7 @@ type Variable struct {
 	Name string
 }
 
-func (v *Variable) typ() expressionType {
+func (v *Variable) expressionType() expressionType {
 	return variableExpression
 }
 
