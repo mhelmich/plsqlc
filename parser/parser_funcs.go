@@ -200,9 +200,6 @@ func parseQualifiedFunctionCall(p *parser, moduleName string) ast.Expression {
 
 func parseLocalFunctionCall(p *parser, moduleName string, funcName string) ast.Expression {
 	fc := ast.NewFunctionCall(moduleName, funcName)
-	if ok := p.acceptValue("("); !ok {
-		log.Panicf("Can't find '(' lex item")
-	}
 
 	for ok := p.acceptValue(")"); !ok; ok = p.acceptValue(")") {
 		// there is moa parameterz

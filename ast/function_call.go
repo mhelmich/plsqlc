@@ -82,7 +82,7 @@ func (fc *FunctionCall) GenIR(cc *CompilerContext) value.Value {
 			log.Panicf("Don't recognize runtime function '%s'", fc.FunctionName)
 		}
 	} else {
-		fn = cc.getFuncByName(fc.FunctionName)
+		fn = cc.getFuncByName(fc.ModuleName + "." + fc.FunctionName)
 	}
 
 	args := make([]value.Value, 0)

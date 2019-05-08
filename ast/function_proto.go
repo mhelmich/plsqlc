@@ -49,7 +49,10 @@ func (fp *FunctionProto) GenIR(cc *CompilerContext) *ir.Func {
 	for idx := range fp.Params {
 		params = append(params, fp.Params[idx].GenIR(cc))
 	}
-	llvmFunc := cc.llvmModule.NewFunc(cc.currentPackageName+"."+fp.Name, types.Void, params...)
+
+	qualifiedFuncName := cc.currentPackageName + "." + fp.Name
+	llvmFunc := cc.llvmModule.NewFunc(qualifiedFuncName, types.Void, params...)
+	cc.scopes.addMember(qualifiedFuncName, llvmFunc)
 	return llvmFunc
 }
 

@@ -97,6 +97,19 @@ func TestFixture5(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+var fixture6Output = "Hello_from_P1!\n"
+
+func TestFixture6(t *testing.T) {
+	Compile("./test06.sql", "./test", printIR, deleteTmpFile)
+	output, err := executeBinary("./test")
+	assert.Equal(t, fixture6Output, output)
+	assert.Nil(t, err)
+	// err = os.Remove("./_temp_llvm_.ll")
+	// assert.Nil(t, err)
+	err = os.Remove("./test")
+	assert.Nil(t, err)
+}
+
 func executeBinary(file string) (string, error) {
 	cmd := exec.Command(file)
 	output, err := cmd.CombinedOutput()
