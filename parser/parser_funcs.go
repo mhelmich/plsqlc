@@ -125,7 +125,7 @@ func parseBinOp(p *parser) *ast.BinOp {
 // - a variable
 // - string
 // - a number
-// - a binop (todo)
+// - a binop
 func parseExpression(p *parser) ast.Expression {
 	return parseExpressionFromLexItem(p, p.next())
 }
